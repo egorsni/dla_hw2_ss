@@ -1,0 +1,100 @@
+{
+  "name": "one_batch_test",
+  "n_gpu": 1,
+  "preprocessing": {
+    "sr": 16000,
+    "spectrogram": {
+      "type": "MelSpectrogram",
+      "args": {
+      }
+    },
+    "log_spec": true
+  },
+  "augmentations": {
+    "wave": [],
+    "spectrogram": []
+  },
+  "arch": {
+    "type": "SpEx_Plus",
+    "args": {
+        "L1": 40,
+        "L2": 160,
+        "L3": 320,
+        "num_spks": 921,
+        "spk_embed_dim": 128
+    }
+  },
+  "data": {
+    "train": {
+      "batch_size": 16,
+      "num_workers": 0,
+      "datasets": [
+        {
+          "type": "MixedLibrispeechDataset",
+          "args": {
+            "part": "train-clean-360",
+            "n_samples": 10000,
+            "test": false
+          }
+        }
+      ]
+    },
+    "val": {
+      "batch_size": 16,
+      "num_workers": 0,
+      "datasets": [
+        {
+          "type": "MixedLibrispeechDataset",
+          "args": {
+            "part": "dev-clean",
+            "n_samples": 1500,
+            "test": true
+          }
+        }
+      ]
+    }
+  },
+  "optimizer": {
+    "type": "Adam",
+    "args": {
+      "lr": 1e-3
+    }
+  },
+  "loss": {
+    "type": "si_sdr_loss",
+    "args": {}
+  },
+  "metrics": [
+    {
+      "type": "SiSDRMetric",
+      "args": {
+        "name": "SI-SDR"
+      }
+    },
+    {
+      "type": "PESQMetric",
+      "args": {
+        "name": "PESQ"
+      }
+    }
+  ],
+  "lr_scheduler": {
+    "type": "ReduceLROnPlateau",
+    "args": {
+      "patience": 1,
+      "factor": 0.3
+    }
+  },
+  "trainer": {
+    "epochs": 15,
+    "save_dir": "saved/",
+    "save_period": 5,
+    "verbosity": 2,
+    "monitor": "min val_loss",
+    "early_stop": 100,
+    "visualize": "wandb",
+    "wandb_project": "ss_project",
+    "grad_norm_clip": 10,
+    "len_epoch": 625
+  }
+}
