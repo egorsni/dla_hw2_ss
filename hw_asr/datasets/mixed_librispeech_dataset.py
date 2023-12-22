@@ -250,7 +250,7 @@ class MixtureGenerator:
 
 
 class MixedLibrispeechDataset(BaseDataset):
-    def __init__(self, part, n_samples, test, data_dir=None, *args, **kwargs):
+    def __init__(self, part, n_samples, test,test_path=None, data_dir=None, *args, **kwargs):
         assert part in URL_LINKS or part == 'train_all' or part=='public-test-dataset'
 
         if data_dir is None:
@@ -260,11 +260,19 @@ class MixedLibrispeechDataset(BaseDataset):
         self.n_samples = n_samples
         self.test = test
         self.num_speakers = 0
-        if part == 'train_all':
-            index = sum([self._get_or_load_index(part)
-                         for part in URL_LINKS if 'train' in part], [])
+        self.test_path = test_path
+        
+        if test_path is not None:
+            print(test_path)
+            index = self._create_index(part, test_path)
+            print(len(index))
         else:
-            index = self._get_or_load_index(part)
+        
+            if part == 'train_all':
+                index = sum([self._get_or_load_index(part)
+                             for part in URL_LINKS if 'train' in part], [])
+            else:
+                index = self._get_or_load_index(part)
 
         super().__init__(index, self.num_speakers, *args, **kwargs)
 
@@ -278,9 +286,10 @@ class MixedLibrispeechDataset(BaseDataset):
         os.remove(str(arch_path))
         shutil.rmtree(str(self._data_dir / "LibriSpeech"))
 
-    def _get_or_load_index(self, part):
+    def _get_or_load_index(self, part, index_path=None):
 #         print(self._data_dir, part)
-        index_path = self._data_dir / f"{part}_mixed_index.json"
+        if index_path is None:
+            index_path = self._data_dir / f"{part}_mixed_index.json"
         if index_path.exists():
             with index_path.open() as f:
                 index = json.load(f)
@@ -306,25 +315,28 @@ class MixedLibrispeechDataset(BaseDataset):
         self.num_speakers = max(target_ids.values())
         return index
     
-    def _create_index(self, part):
+    def _create_index(self, part, path_mixtures=None):
 #         print(str(self._data_dir))
-        path = str(self._data_dir) + '/' + part
-        path_mixtures = str(self._data_dir) + '/' + part + '_mixtures'
-        speakers = [el.name for el in os.scandir(path)]
-        speakers_files = [LibriSpeechSpeakerFiles(i, path, audioTemplate="*.flac") for i in speakers]
-        mixer = MixtureGenerator(speakers_files,
-                                path_mixtures,
-                                nfiles=self.n_samples,
-                                test=self.test)
-        mixer.generate_mixes(snr_levels=[-5,5],
-                           num_workers=2,
-                           update_steps=100,
-                           trim_db=20,
-                           vad_db=20,
-                           audioLen=3)
-        refs = sorted(glob(os.path.join(path_mixtures, '*-ref.wav')))
-        mixes = sorted(glob(os.path.join(path_mixtures, '*-mixed.wav')))
-        targets = sorted(glob(os.path.join(path_mixtures, '*-target.wav')))
+        if path_mixtures is None:
+            path = str(self._data_dir) + '/' + part
+            path_mixtures = str(self._data_dir) + '/' + part + '_mixtures'
+            speakers = [el.name for el in os.scandir(path)]
+            speakers_files = [LibriSpeechSpeakerFiles(i, path, audioTemplate="*.flac") for i in speakers]
+            mixer = MixtureGenerator(speakers_files,
+                                    path_mixtures,
+                                    nfiles=self.n_samples,
+                                    test=self.test)
+            mixer.generate_mixes(snr_levels=[-5,5],
+                               num_workers=2,
+                               update_steps=100,
+                               trim_db=20,
+                               vad_db=20,
+                               audioLen=3)
+        print(path_mixtures)
+        refs = sorted(glob(os.path.join(path_mixtures, 'refs/*-ref.wav')))
+        mixes = sorted(glob(os.path.join(path_mixtures, 'mix/*-mixed.wav')))
+        targets = sorted(glob(os.path.join(path_mixtures, 'targets/*-target.wav')))
+        print(os.path.join(path_mixtures, 'ref/*-ref.wav'))
         index =[]
         
 #         path_mix = os.path.join(out_dir, f"{target_id}_{noise_id}_" + "%06d" % idx + "-mixed.wav")
@@ -334,7 +346,8 @@ class MixedLibrispeechDataset(BaseDataset):
                         {
                             "ref_path": ref,
                             "mix_path": mix,
-                            "target_path": target
+                            "target_path": target,
+                            "target_id": 228
                         }
                     )
         return index
