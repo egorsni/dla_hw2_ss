@@ -149,7 +149,10 @@ if __name__ == "__main__":
                     {
                         "type": "MixedLibrispeechDataset",
                         "args": {
-                            "part": "public-test-dataset"
+                            "part": "public-test-dataset",
+                            "n_samples": 10000,
+                            "test": False,
+                            "test_path": args.test_data_folder
                         },
                     }
                 ],
